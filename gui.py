@@ -3,7 +3,7 @@ import chess
 import sys
 import os
 import random
-from ChessEngine import MinimaxEngine, GreedyEngine
+from ChessEngine import MinimaxEngine, GreedyEngine, RandomEngine
 
 # ---------- Configuration ----------
 BOARD_SIZE = 640
@@ -65,10 +65,11 @@ def draw_start_screen():
     screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
 
     options = [
-        ("1. Easy (Depth 1)", pygame.Rect(WIDTH//2 - 100, 200, 200, 50), 1),
+        ("1. Easy (Depth 2)", pygame.Rect(WIDTH//2 - 100, 200, 200, 50), 2),
         ("2. Medium (Depth 3)", pygame.Rect(WIDTH//2 - 100, 270, 200, 50), 3),
         ("3. Hard (Depth 4)", pygame.Rect(WIDTH//2 - 100, 340, 200, 50), 4),
-        ("4. Greedy", pygame.Rect(WIDTH//2 - 100, 410, 200, 50), "greedy")
+        ("4. Greedy", pygame.Rect(WIDTH//2 - 100, 410, 200, 50), "greedy"),
+        ("5. Random", pygame.Rect(WIDTH//2 - 100, 480, 200, 50), "random")
     ]
 
     for text, rect, val in options:
@@ -93,10 +94,11 @@ def run_start_screen():
                     if rect.collidepoint(x, y):
                         return val
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_1: return 1
+                if event.key == pygame.K_1: return 2
                 if event.key == pygame.K_2: return 3
                 if event.key == pygame.K_3: return 4
                 if event.key == pygame.K_4: return "greedy"
+                if event.key == pygame.K_5: return "random"
                 if event.key == pygame.K_q: 
                     pygame.quit()
                     sys.exit()
@@ -145,10 +147,11 @@ def draw_panel(board, engine_name, minimax_depth, human_color, move_history):
 
     controls = [
         "Controls:",
-        "1 - Easy (Depth 1)",
+        "1 - Easy (Depth 2)",
         "2 - Medium (Depth 3)",
         "3 - Hard (Depth 4)",
         "4 - Greedy engine",
+        "5 - Random engine",
         "+ / - : change Minimax depth",
         "U - Undo last ply(s)",
         "T - Toggle human side",
@@ -193,11 +196,15 @@ if selected_mode == "greedy":
     engine = GreedyEngine()
     engine_name = "Greedy"
     minimax_depth = 2 # Default placeholder
+elif selected_mode == "random":
+    engine = RandomEngine()
+    engine_name = "Random"
+    minimax_depth = 2 # Default placeholder
 else:
     minimax_depth = selected_mode
     engine = MinimaxEngine(depth=minimax_depth)
-    if minimax_depth == 1:
-        engine_name = "Easy (Depth 1)"
+    if minimax_depth == 2:
+        engine_name = "Easy (Depth 2)"
     elif minimax_depth == 3:
         engine_name = "Medium (Depth 3)"
     elif minimax_depth == 4:
@@ -283,9 +290,9 @@ while running:
             if event.key == pygame.K_q:
                 running = False
             elif event.key == pygame.K_1:
-                minimax_depth = 1
+                minimax_depth = 2
                 engine = MinimaxEngine(depth=minimax_depth)
-                engine_name = "Easy (Depth 1)"
+                engine_name = "Easy (Depth 2)"
             elif event.key == pygame.K_2:
                 minimax_depth = 3
                 engine = MinimaxEngine(depth=minimax_depth)
@@ -297,6 +304,9 @@ while running:
             elif event.key == pygame.K_4:
                 engine = GreedyEngine()
                 engine_name = "Greedy"
+            elif event.key == pygame.K_5:
+                engine = RandomEngine()
+                engine_name = "Random"
             elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
                 minimax_depth += 1
                 if "Minimax" in engine_name or "Easy" in engine_name or "Medium" in engine_name or "Hard" in engine_name:

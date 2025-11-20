@@ -1,5 +1,5 @@
 import chess as ch
-from ChessEngine import MinimaxEngine, GreedyEngine
+from ChessEngine import MinimaxEngine, GreedyEngine, RandomEngine
 import textwrap
 
 class Main:
@@ -10,17 +10,18 @@ class Main:
 
     def chooseEngine(self):
         print("Choose Difficulty Level:")
-        print("1 → Easy (Minimax Depth 1)")
+        print("1 → Easy (Minimax Depth 2)")
         print("2 → Medium (Minimax Depth 3)")
         print("3 → Hard (Minimax Depth 4)")
-        print("4 → Custom (Advanced)")
+        print("4 → Random")
+        print("5 → Custom (Advanced)")
 
         while True:
-            choice = input("Enter 1/2/3/4: ").strip()
+            choice = input("Enter 1/2/3/4/5: ").strip()
 
             if choice == '1':
                 print("Selected Easy Mode.")
-                return MinimaxEngine(depth=1)
+                return MinimaxEngine(depth=2)
             elif choice == '2':
                 print("Selected Medium Mode.")
                 return MinimaxEngine(depth=3)
@@ -28,6 +29,9 @@ class Main:
                 print("Selected Hard Mode.")
                 return MinimaxEngine(depth=4)
             elif choice == '4':
+                print("Selected Random Mode.")
+                return RandomEngine()
+            elif choice == '5':
                 print("Choose Engine:")
                 print("1 → Minimax")
                 print("2 → Greedy Material")
