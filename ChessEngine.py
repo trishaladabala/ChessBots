@@ -25,13 +25,6 @@ class BaseEngine:
     def get_move(self, board):
         raise NotImplementedError
 
-class RandomEngine(BaseEngine):
-    def get_move(self, board):
-        legal = list(board.legal_moves)
-        if not legal:
-            return None
-        return random.choice(legal)
-
 class GreedyEngine(BaseEngine):
     def evaluate_move_delta(self, board, move):
         side_to_move = board.turn  # Store before pushing the move

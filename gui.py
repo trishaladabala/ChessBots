@@ -3,7 +3,7 @@ import chess
 import sys
 import os
 import random
-from ChessEngine import MinimaxEngine, RandomEngine, GreedyEngine
+from ChessEngine import MinimaxEngine, GreedyEngine
 
 # ---------- Configuration ----------
 BOARD_SIZE = 640
@@ -59,6 +59,48 @@ def screen_to_square(x, y):
         return chess.square(file, rank)
     return None
 
+def draw_start_screen():
+    screen.fill((240, 240, 240))
+    title = big_font.render("Select Difficulty Mode", True, (20, 20, 20))
+    screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
+
+    options = [
+        ("1. Easy (Depth 1)", pygame.Rect(WIDTH//2 - 100, 200, 200, 50), 1),
+        ("2. Medium (Depth 3)", pygame.Rect(WIDTH//2 - 100, 270, 200, 50), 3),
+        ("3. Hard (Depth 4)", pygame.Rect(WIDTH//2 - 100, 340, 200, 50), 4),
+        ("4. Greedy", pygame.Rect(WIDTH//2 - 100, 410, 200, 50), "greedy")
+    ]
+
+    for text, rect, val in options:
+        pygame.draw.rect(screen, (200, 200, 200), rect)
+        pygame.draw.rect(screen, (50, 50, 50), rect, 2)
+        label = font.render(text, True, (10, 10, 10))
+        screen.blit(label, (rect.centerx - label.get_width() // 2, rect.centery - label.get_height() // 2))
+
+    pygame.display.flip()
+    return options
+
+def run_start_screen():
+    while True:
+        options = draw_start_screen()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = event.pos
+                for text, rect, val in options:
+                    if rect.collidepoint(x, y):
+                        return val
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1: return 1
+                if event.key == pygame.K_2: return 3
+                if event.key == pygame.K_3: return 4
+                if event.key == pygame.K_4: return "greedy"
+                if event.key == pygame.K_q: 
+                    pygame.quit()
+                    sys.exit()
+
 def draw_board(board, selected_sq, legal_targets):
     colors = [pygame.Color(240, 217, 181), pygame.Color(181, 136, 99)]
     for r in range(8):
@@ -103,9 +145,10 @@ def draw_panel(board, engine_name, minimax_depth, human_color, move_history):
 
     controls = [
         "Controls:",
-        "1 - Minimax engine",
-        "2 - Random engine",
-        "3 - Greedy engine",
+        "1 - Easy (Depth 1)",
+        "2 - Medium (Depth 3)",
+        "3 - Hard (Depth 4)",
+        "4 - Greedy engine",
         "+ / - : change Minimax depth",
         "U - Undo last ply(s)",
         "T - Toggle human side",
@@ -116,25 +159,52 @@ def draw_panel(board, engine_name, minimax_depth, human_color, move_history):
         screen.blit(font.render(line, True, (10,10,10)), (panel_x + 10, y))
         y += 20
 
-    screen.blit(big_font.render("Move history:", True, (10, 10, 10)), (panel_x + 10, 260))
-    history_y = 290
+    # Move history section moved down to avoid overlap
+    screen.blit(big_font.render("Move history:", True, (10, 10, 10)), (panel_x + 10, 310))
+    history_y = 340
 
     rows = []
     for i in range(0, len(move_history), 2):
         white_move = move_history[i] if i < len(move_history) else ""
         black_move = move_history[i+1] if (i+1) < len(move_history) else ""
         move_num = (i//2) + 1
-        rows.append(f"{move_num}. {white_move}   {black_move}")
-    rows = rows[-12:]
-    for r in rows:
-        screen.blit(font.render(r, True, (10,10,10)), (panel_x + 10, history_y))
-        history_y += 18
+        
+        # Render columns manually for better alignment
+        # Move number
+        screen.blit(font.render(f"{move_num}.", True, (10,10,10)), (panel_x + 10, history_y))
+        # White move
+        screen.blit(font.render(white_move, True, (10,10,10)), (panel_x + 50, history_y))
+        # Black move
+        screen.blit(font.render(black_move, True, (10,10,10)), (panel_x + 140, history_y))
+        
+        history_y += 20
+        
+        # Limit to showing last 15 moves to fit on screen
+        if history_y > HEIGHT - 20:
+            break
 
 # ---------- Game + Engine setup ----------
 board = chess.Board()
-engine = MinimaxEngine(depth=2)
-engine_name = "Minimax"
-minimax_depth = 2
+
+# Show start screen to select mode
+selected_mode = run_start_screen()
+
+if selected_mode == "greedy":
+    engine = GreedyEngine()
+    engine_name = "Greedy"
+    minimax_depth = 2 # Default placeholder
+else:
+    minimax_depth = selected_mode
+    engine = MinimaxEngine(depth=minimax_depth)
+    if minimax_depth == 1:
+        engine_name = "Easy (Depth 1)"
+    elif minimax_depth == 3:
+        engine_name = "Medium (Depth 3)"
+    elif minimax_depth == 4:
+        engine_name = "Hard (Depth 4)"
+    else:
+        engine_name = f"Minimax (Depth {minimax_depth})"
+
 human_side = chess.WHITE
 
 selected_square = None
@@ -213,22 +283,30 @@ while running:
             if event.key == pygame.K_q:
                 running = False
             elif event.key == pygame.K_1:
+                minimax_depth = 1
                 engine = MinimaxEngine(depth=minimax_depth)
-                engine_name = "Minimax"
+                engine_name = "Easy (Depth 1)"
             elif event.key == pygame.K_2:
-                engine = RandomEngine()
-                engine_name = "Random"
+                minimax_depth = 3
+                engine = MinimaxEngine(depth=minimax_depth)
+                engine_name = "Medium (Depth 3)"
             elif event.key == pygame.K_3:
+                minimax_depth = 4
+                engine = MinimaxEngine(depth=minimax_depth)
+                engine_name = "Hard (Depth 4)"
+            elif event.key == pygame.K_4:
                 engine = GreedyEngine()
                 engine_name = "Greedy"
             elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
                 minimax_depth += 1
-                if engine_name == "Minimax":
+                if "Minimax" in engine_name or "Easy" in engine_name or "Medium" in engine_name or "Hard" in engine_name:
                     engine = MinimaxEngine(depth=minimax_depth)
+                    engine_name = f"Minimax (Depth {minimax_depth})"
             elif event.key == pygame.K_MINUS:
                 minimax_depth = max(1, minimax_depth - 1)
-                if engine_name == "Minimax":
+                if "Minimax" in engine_name or "Easy" in engine_name or "Medium" in engine_name or "Hard" in engine_name:
                     engine = MinimaxEngine(depth=minimax_depth)
+                    engine_name = f"Minimax (Depth {minimax_depth})"
             elif event.key == pygame.K_t:
                 human_side = chess.BLACK if human_side == chess.WHITE else chess.WHITE
                 selected_square = None
@@ -255,8 +333,38 @@ while running:
     draw_panel(board, engine_name, minimax_depth, human_side, move_history)
 
     if board.is_game_over():
-        result_text = "Game over: " + board.result()
-        screen.blit(big_font.render(result_text, True, (200,10,10)), (10, BOARD_SIZE - 30))
+        outcome = board.outcome()
+        if outcome.winner == chess.WHITE:
+            winner_text = "White Wins!"
+        elif outcome.winner == chess.BLACK:
+            winner_text = "Black Wins!"
+        else:
+            winner_text = "Draw!"
+
+        if outcome.termination == chess.Termination.CHECKMATE:
+            reason = "Checkmate"
+        else:
+            reason = outcome.termination.name.replace('_', ' ').title()
+
+        # Draw semi-transparent box centered on the board
+        box_width, box_height = 300, 150
+        box_x = (BOARD_SIZE - box_width) // 2
+        box_y = (HEIGHT - box_height) // 2
+        
+        s = pygame.Surface((box_width, box_height))
+        s.set_alpha(230)
+        s.fill((40, 40, 40))
+        screen.blit(s, (box_x, box_y))
+        
+        # Draw border
+        pygame.draw.rect(screen, (200, 200, 200), (box_x, box_y, box_width, box_height), 2)
+
+        # Draw text
+        txt_winner = big_font.render(winner_text, True, (255, 215, 0))
+        txt_reason = font.render(f"by {reason}", True, (220, 220, 220))
+        
+        screen.blit(txt_winner, (box_x + (box_width - txt_winner.get_width()) // 2, box_y + 40))
+        screen.blit(txt_reason, (box_x + (box_width - txt_reason.get_width()) // 2, box_y + 80))
 
     pygame.display.flip()
 
