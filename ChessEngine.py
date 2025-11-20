@@ -1,94 +1,112 @@
-import random as rd
-import chess as ch
-class Engine:
-    
-    def __init__(self, board, maxDepth, color):
-        self.board = board
-        self.maxDepth = maxDepth
-        self.color = color
-    
-    def getBestMove(self):
-        return self.engine(None,1)
+# ChessEngine.py
+import chess
+import random
 
-    def evalFunct(self):
-        compt=0
-        for i in range(64):
-            compt+=self.squareResPoints(ch.SQUARES[i])
-        compt+=self.mateOpportunity()+self.openning()+0.001*rd.random()
-        return compt
+PIECE_VALUES = {
+    chess.PAWN: 1,
+    chess.KNIGHT: 3,
+    chess.BISHOP: 3,
+    chess.ROOK: 5,
+    chess.QUEEN: 9,
+    chess.KING: 0
+}
 
+def material_eval(board):
+    score = 0
+    for sq in chess.SQUARES:
+        piece = board.piece_at(sq)
+        if piece:
+            val = PIECE_VALUES.get(piece.piece_type, 0)
+            score += val if piece.color == chess.WHITE else -val
+    return score
 
-    def mateOpportunity(self):
-        if(self.board.legal_moves.count()==0):
-            if(self.board.turn==self.color):
-                return -999
-            else:
-                return 999
-        else:
-            return 0
-    
-    def openning(self):
-        if (self.board.fullmove_number < 10):
-            if(self.board.turn==self.color):
-                return 1/30*self.board.legal_moves.count()
-            else:
-                return -1/30*self.board.legal_moves.count()
-        else:
-            return 0
+class BaseEngine:
+    def get_move(self, board):
+        raise NotImplementedError
 
+class RandomEngine(BaseEngine):
+    def get_move(self, board):
+        legal = list(board.legal_moves)
+        if not legal:
+            return None
+        return random.choice(legal)
 
+class GreedyEngine(BaseEngine):
+    def evaluate_move_delta(self, board, move):
+        before = material_eval(board)
+        board.push(move)
+        after = material_eval(board)
+        board.pop()
+        # We want score positive if good for side to move (before making the move)
+        # When evaluating a move that's about to be played by board.turn,
+        # board.turn before the push is the side making the move.
+        # So simply return (after - before) as improvement for that side.
+        return after - before
 
-    def squareResPoints(self, square):
-        pieceValue=0
-        if(self.board.piece_type_at(square)==ch.PAWN):
-            pieceValue=1
-        elif(self.board.piece_type_at(square)==ch.ROOK):
-            pieceValue=5.1
-        elif(self.board.piece_type_at(square)==ch.BISHOP):
-            pieceValue=3.33
-        elif(self.board.piece_type_at(square)==ch.KNIGHT):
-            pieceValue=3.2
-        elif(self.board.piece_type_at(square)==ch.QUEEN):
-            pieceValue=8.8
-        
-        
-        if (self.board.color_at(square)!=self.color):
-            return -pieceValue
-        else:
-            return pieceValue
+    def get_move(self, board):
+        legal = list(board.legal_moves)
+        if not legal:
+            return None
 
+        best = None
+        best_score = float("-inf")
 
-    def engine(self, candidate, depth):
-        if (depth == self.maxDepth or self.board.legal_moves.count() == 0):
-            return self.evalFunct()
-        else:
-            moveListe = list(self.board.legal_moves)
-            if (depth % 2 != 0):
-                newCandidate = float("-inf")
-            else:
-                newCandidate = float("inf")
+        for mv in legal:
+            score = self.evaluate_move_delta(board, mv)
+            # If engine is black (board.turn == False) higher 'after-before' still means good for the side to move,
+            # but material_eval uses white positive / black negative. Our delta is fine as a comparator for moves by side to move.
+            if score > best_score:
+                best_score = score
+                best = mv
 
-            for i in moveListe:
-                self.board.push(i)
-                value = self.engine(newCandidate, depth + 1)
+        if best is None:
+            return random.choice(legal)
+        return best
 
-                if (value > newCandidate and depth % 2 != 0):
-                    if (depth == 1):
-                        move = i
-                    newCandidate = value
-                elif (value < newCandidate and depth % 2 == 0):
-                    newCandidate = value
+class MinimaxEngine(BaseEngine):
+    def __init__(self, depth=2):
+        self.depth = depth
 
-                if (candidate is not None and value < candidate and depth % 2 == 0):
-                    self.board.pop()
-                    break
-                elif (candidate is not None and value > candidate and depth % 2 != 0):
-                    self.board.pop()
-                    break
+    def material_eval(self, board):
+        return material_eval(board)
 
-                self.board.pop()
+    def negamax(self, board, depth, alpha, beta, color):
+        if depth == 0 or board.is_game_over():
+            return color * self.material_eval(board)
 
-            if (depth > 1):
-                return newCandidate
-            else:
-                return move
+        max_eval = float("-inf")
+        # convert to list so push/pop won't mutate the iterator
+        for mv in list(board.legal_moves):
+            board.push(mv)
+            val = -self.negamax(board, depth - 1, -beta, -alpha, -color)
+            board.pop()
+
+            if val > max_eval:
+                max_eval = val
+            if val > alpha:
+                alpha = val
+            if alpha >= beta:
+                break
+
+        return max_eval
+
+    def get_move(self, board):
+        legal = list(board.legal_moves)
+        if not legal:
+            return None
+
+        root_color = 1 if board.turn == chess.WHITE else -1
+        best = None
+        best_score = float("-inf")
+
+        for mv in legal:
+            board.push(mv)
+            # pass -root_color to match negamax sign convention (we already pushed mv)
+            score = -self.negamax(board, self.depth - 1, float("-inf"), float("inf"), -root_color)
+            board.pop()
+
+            if score > best_score:
+                best_score = score
+                best = mv
+
+        return best
